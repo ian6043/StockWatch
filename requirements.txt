@@ -1,0 +1,10 @@
+fastapi
+yfinance
+pydantic
+sqlalchemy
+twilio
+apscheduler
+pandas_market_calendars
+pytest 
+httpx
+uvicorn
