@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-from app.db_models import User, WatchlistItem, Rule
+from frontend.app.db_models import User, WatchlistItem, Rule
 
 
 def create_user(db: Session, user_id: str, phone_number: str | None = None) -> User:

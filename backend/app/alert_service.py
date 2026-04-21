@@ -2,10 +2,10 @@ import time
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-from app.stock_service import get_stock_data
-from app.db_models import User, WatchlistItem, Rule, AlertEvent
-from app.watchlist_service import get_user_phone
-from app.notification_service import send_sms
+from frontend.app.stock_service import get_stock_data
+from frontend.app.db_models import User, WatchlistItem, Rule, AlertEvent
+from frontend.app.watchlist_service import get_user_phone
+from frontend.app.notification_service import send_sms
 
 
 def _compare(condition: str, actual_value: float, target_value: float) -> bool:

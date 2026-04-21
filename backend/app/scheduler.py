@@ -5,8 +5,8 @@ import pandas_market_calendars as mcal
 from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy.orm import Session
 
-from app.alert_service import check_all_users_alerts
-from app.database import SessionLocal
+from frontend.app.alert_service import check_all_users_alerts
+from frontend.app.database import SessionLocal
 
 MARKET_TIMEZONE = "America/New_York"
 
