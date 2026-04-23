@@ -56,6 +56,21 @@ export async function removeStock(symbol) {
   return apiFetch(`/users/${USER_ID}/watchlist/${symbol}`, { method: "DELETE" });
 }
 
+// GET /users/{user_id}
+export async function getUser() {
+  if (USE_MOCK) return { id: 1, user_id: USER_ID, phone_number: null };
+  return apiFetch(`/users/${USER_ID}`);
+}
+
+// PUT /users/{user_id}/phone  body: { phone_number }
+export async function updatePhone(phone_number) {
+  if (USE_MOCK) return { id: 1, user_id: USER_ID, phone_number };
+  return apiFetch(`/users/${USER_ID}/phone`, {
+    method: "PUT",
+    body: JSON.stringify({ phone_number }),
+  });
+}
+
 // GET /stock/{symbol}
 export async function getStockData(symbol) {
   if (USE_MOCK) return mockStockData[symbol] ?? null;
