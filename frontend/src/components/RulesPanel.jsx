@@ -11,12 +11,12 @@ const COOLDOWN_OPTIONS = [
 ];
 
 function formatRule(rule) {
-  const type = rule.rule_type === "percent_change" ? "% change" : "price";
-  const value =
-    rule.rule_type === "percent_change"
-      ? `${rule.target_value}%`
-      : `$${rule.target_value.toFixed(2)}`;
-  return `${type} ${rule.condition} ${value}`;
+  if (rule.rule_type === "percent_change") {
+    const direction = rule.condition === "above" ? "rises above" : "drops above";
+    return `% change ${direction} ${Math.abs(rule.target_value).toFixed(2)}%`;
+  }
+  const direction = rule.condition === "above" ? "above" : "below";
+  return `price ${direction} $${rule.target_value.toFixed(2)}`;
 }
 
 function formatCooldown(seconds) {
@@ -37,22 +37,33 @@ export default function RulesPanel({ symbol, rules, onRulesChange }) {
   const [error, setError] = useState(null);
 
   function handleFormChange(e) {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+      // reset condition to a valid option when switching rule type
+      ...(name === "rule_type" ? { condition: "above", target_value: "" } : {}),
+    }));
   }
 
   async function handleAdd(e) {
     e.preventDefault();
     const value = parseFloat(form.target_value);
     if (isNaN(value)) return;
+    // For % change drops, negate so backend checks day_percent_change < -X
+    const targetValue =
+      form.rule_type === "percent_change" && form.condition === "below"
+        ? -Math.abs(value)
+        : Math.abs(value);
     try {
       const rule = await addRule(symbol, {
         rule_type: form.rule_type,
         condition: form.condition,
-        target_value: value,
+        target_value: targetValue,
         cooldown_seconds: parseInt(form.cooldown_seconds),
       });
       onRulesChange([...rules, rule]);
-      setForm({ rule_type: "price", condition: "above", target_value: "", cooldown_seconds: 300 });
+      setForm({ rule_type: "price", condition: "above", target_value: "", cooldown_seconds: 86400 });
       setShowForm(false);
       setError(null);
     } catch (err) {
@@ -98,13 +109,22 @@ export default function RulesPanel({ symbol, rules, onRulesChange }) {
             <option value="percent_change">% Change</option>
           </select>
           <select name="condition" value={form.condition} onChange={handleFormChange}>
-            <option value="above">Above</option>
-            <option value="below">Below</option>
+            {form.rule_type === "percent_change" ? (
+              <>
+                <option value="above">Rise</option>
+                <option value="below">Drop</option>
+              </>
+            ) : (
+              <>
+                <option value="above">Above</option>
+                <option value="below">Below</option>
+              </>
+            )}
           </select>
           <input
             type="number"
             name="target_value"
-            placeholder="Value"
+            placeholder={form.rule_type === "percent_change" ? "%" : "$"}
             value={form.target_value}
             onChange={handleFormChange}
             step="any"

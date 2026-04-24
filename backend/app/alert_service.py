@@ -2,10 +2,9 @@ import time
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-from frontend.app.stock_service import get_stock_data
-from frontend.app.db_models import User, WatchlistItem, Rule, AlertEvent
-from frontend.app.watchlist_service import get_user_phone
-from frontend.app.notification_service import send_sms
+from app.stock_service import get_stock_data
+from app.db_models import User, WatchlistItem, Rule, AlertEvent
+from app.notification_service import send_discord_alert
 
 
 def _compare(condition: str, actual_value: float, target_value: float) -> bool:
@@ -29,13 +28,6 @@ def _seconds_remaining(rule: Rule) -> int:
     return max(0, int(remaining))
 
 
-def _build_sms_message(symbol: str, rule: Rule, actual_value: float) -> str:
-    return (
-        f"Stock Alert: {symbol} triggered rule #{rule.id} - "
-        f"{rule.rule_type} is {actual_value:.2f}, "
-        f"condition: {rule.condition} {rule.target_value}."
-    )
-
 
 def evaluate_rule(db: Session, user_id: str, symbol: str, rule: Rule) -> dict:
     stock = get_stock_data(symbol)
@@ -55,6 +47,10 @@ def evaluate_rule(db: Session, user_id: str, symbol: str, rule: Rule) -> dict:
         }
 
     if _is_on_cooldown(rule):
+        print(
+            f"[alert] {symbol} rule#{rule.id} skipped — on cooldown, "
+            f"{_seconds_remaining(rule)}s remaining"
+        )
         return {
             "rule_id": rule.id,
             "symbol": symbol,
@@ -63,7 +59,7 @@ def evaluate_rule(db: Session, user_id: str, symbol: str, rule: Rule) -> dict:
             "target_value": rule.target_value,
             "actual_value": actual_value,
             "triggered": False,
-            "sms_sent": False,
+            "notification_status": "on_cooldown",
             "on_cooldown": True,
             "cooldown_remaining_seconds": _seconds_remaining(rule),
             "message": "Rule is on cooldown",
@@ -75,28 +71,23 @@ def evaluate_rule(db: Session, user_id: str, symbol: str, rule: Rule) -> dict:
         target_value=rule.target_value,
     )
 
-    sms_result = None
-    sms_sent = False
-    phone_number = None
+    print(
+        f"[alert] {symbol} rule#{rule.id} ({rule.rule_type} {rule.condition} {rule.target_value}): "
+        f"actual={actual_value:.4f} triggered={triggered}"
+    )
+
+    notification_result = None
     notification_status = None
 
     if triggered:
         rule.last_triggered_at = time.time()
 
         try:
-            phone_number = get_user_phone(db, user_id)
-            if phone_number:
-                sms_result = send_sms(
-                    phone_number=phone_number,
-                    message=_build_sms_message(symbol, rule, actual_value),
-                )
-                sms_sent = True
-                notification_status = "sms_sent"
-            else:
-                notification_status = "no_phone_number"
+            notification_result = send_discord_alert(symbol, rule, actual_value)
+            notification_status = "discord_sent"
         except Exception as e:
-            sms_result = {"error": str(e)}
-            notification_status = "sms_failed"
+            notification_result = {"error": str(e)}
+            notification_status = "discord_failed"
 
         event = AlertEvent(
             rule_id=rule.id,
@@ -116,9 +107,8 @@ def evaluate_rule(db: Session, user_id: str, symbol: str, rule: Rule) -> dict:
         "target_value": rule.target_value,
         "actual_value": actual_value,
         "triggered": triggered,
-        "sms_sent": sms_sent,
-        "phone_number": phone_number,
-        "sms_result": sms_result,
+        "notification_status": notification_status,
+        "notification_result": notification_result,
         "on_cooldown": False,
         "cooldown_remaining_seconds": 0,
         "message": "Triggered" if triggered else "Not triggered",

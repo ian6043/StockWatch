@@ -3,3 +3,4 @@ import os
 SCHEDULER_TICK_SECONDS = int(os.getenv("SCHEDULER_TICK_SECONDS", "60"))
 MARKET_TIMEZONE = "America/New_York"
 API_KEY = os.getenv("API_KEY")
+DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")

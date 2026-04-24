@@ -14,7 +14,7 @@ export default function Watchlist() {
   useEffect(() => {
     getWatchlist()
       .then((items) => {
-        setStocks(items);
+        setStocks(items.map((item) => ({ ...item, rules: item.rules ?? [] })));
         return Promise.all(
           items.map((item) =>
             getStockData(item.symbol).then((data) => ({ symbol: item.symbol, data }))
@@ -36,7 +36,7 @@ export default function Watchlist() {
     if (!symbol || stocks.find((s) => s.symbol === symbol)) return;
     try {
       const item = await addStock(symbol);
-      setStocks((prev) => [...prev, item]);
+      setStocks((prev) => [...prev, { ...item, rules: item.rules ?? [] }]);
       const data = await getStockData(symbol);
       setStockData((prev) => ({ ...prev, [symbol]: data }));
       setInput("");
@@ -109,17 +109,19 @@ export default function Watchlist() {
                     {data?.price != null ? (
                       <>
                         <span className="price">${data.price.toFixed(2)}</span>
-                        <span className={`change ${data.change >= 0 ? "positive" : "negative"}`}>
-                          {data.change >= 0 ? "+" : ""}
-                          {data.change.toFixed(2)} ({data.changePct.toFixed(2)}%)
-                        </span>
+                        {data.day_percent_change != null && data.previous_close != null && (
+                          <span className={`change ${data.day_percent_change >= 0 ? "positive" : "negative"}`}>
+                            {data.day_percent_change >= 0 ? "+" : ""}
+                            {(data.price - data.previous_close).toFixed(2)} ({data.day_percent_change.toFixed(2)}%)
+                          </span>
+                        )}
                       </>
                     ) : (
                       <span className="no-data">—</span>
                     )}
                   </div>
                   <span className="rule-count">
-                    {stock.rules.length > 0 && `${stock.rules.length} rule${stock.rules.length > 1 ? "s" : ""}`}
+                    {(stock.rules?.length > 0) && `${stock.rules.length} rule${stock.rules.length > 1 ? "s" : ""}`}
                   </span>
                   <button
                     className="remove-btn"

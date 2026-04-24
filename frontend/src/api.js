@@ -1,6 +1,6 @@
 import { mockWatchlistItems, mockStockData } from "./mockData";
 
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 const API_KEY = import.meta.env.VITE_API_KEY ?? "";

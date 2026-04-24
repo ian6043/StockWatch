@@ -1,11 +1,12 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from frontend.app.database import Base, engine, get_db
-from frontend.app.stock_service import get_stock_data, get_cache_status
-from frontend.app.watchlist_service import (
+from app.database import Base, engine, get_db
+from app.stock_service import get_stock_data, get_cache_status
+from app.watchlist_service import (
     create_user,
     get_user,
     update_user_phone,
@@ -17,15 +18,15 @@ from frontend.app.watchlist_service import (
     get_rule_by_id,
     delete_rule,
 )
-from frontend.app.alert_service import check_user_alerts
-from frontend.app.schemas import (
+from app.alert_service import check_user_alerts
+from app.schemas import (
     CreateUserRequest,
     UpdatePhoneRequest,
     AddStockRequest,
     CreateRuleRequest,
 )
-from frontend.app.scheduler import start_scheduler, stop_scheduler, get_scheduler_status
-from frontend.app.auth import require_api_key
+from app.scheduler import start_scheduler, stop_scheduler, get_scheduler_status
+from app.auth import require_api_key
 
 Base.metadata.create_all(bind=engine)
 
@@ -41,6 +42,13 @@ app = FastAPI(
     title="Stock Watch API",
     lifespan=lifespan,
     dependencies=[Depends(require_api_key)],
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

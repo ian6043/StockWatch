@@ -1,5 +1,5 @@
 from fastapi import Header, HTTPException
-from frontend.app.settings import API_KEY
+from app.settings import API_KEY
 
 
 def require_api_key(x_api_key: str = Header(...)):
