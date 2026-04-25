@@ -22,10 +22,14 @@ def get_stock_data(symbol: str) -> dict:
     info = ticker.info
 
     if not info:
-        raise ValueError("Invalid symbol or no data found")
+        raise ValueError(f"No data found for symbol '{symbol}'")
 
-    current_price = info.get("currentPrice")
-    previous_close = info.get("previousClose")
+    # ETFs use regularMarketPrice; stocks use currentPrice
+    current_price = info.get("currentPrice") or info.get("regularMarketPrice")
+    previous_close = info.get("previousClose") or info.get("regularMarketPreviousClose")
+
+    if current_price is None:
+        raise ValueError(f"'{symbol}' could not be found or has no price data. Check the symbol is correct.")
 
     day_percent_change = None
     if current_price is not None and previous_close not in (None, 0):

@@ -4,11 +4,6 @@ from typing import Literal
 
 class CreateUserRequest(BaseModel):
     user_id: str = Field(..., min_length=1, max_length=50)
-    phone_number: str | None = None
-
-
-class UpdatePhoneRequest(BaseModel):
-    phone_number: str
 
 
 class AddStockRequest(BaseModel):
@@ -25,7 +20,6 @@ class CreateRuleRequest(BaseModel):
 class UserResponse(BaseModel):
     id: int
     user_id: str
-    phone_number: str | None = None
 
     class Config:
         from_attributes = True

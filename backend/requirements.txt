@@ -2,9 +2,10 @@ fastapi
 yfinance
 pydantic
 sqlalchemy
-twilio
 apscheduler
 pandas_market_calendars
-pytest 
+pytest
 httpx
 uvicorn
+discord.py
+python-dotenv

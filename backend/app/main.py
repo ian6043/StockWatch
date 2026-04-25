@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Depends
@@ -9,7 +10,6 @@ from app.stock_service import get_stock_data, get_cache_status
 from app.watchlist_service import (
     create_user,
     get_user,
-    update_user_phone,
     add_stock_to_watchlist,
     list_watchlist,
     remove_stock_from_watchlist,
@@ -21,12 +21,13 @@ from app.watchlist_service import (
 from app.alert_service import check_user_alerts
 from app.schemas import (
     CreateUserRequest,
-    UpdatePhoneRequest,
     AddStockRequest,
     CreateRuleRequest,
 )
 from app.scheduler import start_scheduler, stop_scheduler, get_scheduler_status
 from app.auth import require_api_key
+from app.settings import ALLOWED_ORIGINS, DISCORD_BOT_TOKEN
+import app.bot as bot
 
 Base.metadata.create_all(bind=engine)
 
@@ -34,7 +35,14 @@ Base.metadata.create_all(bind=engine)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     start_scheduler()
+    bot_task = asyncio.create_task(bot.start()) if DISCORD_BOT_TOKEN else None
     yield
+    if bot_task:
+        bot_task.cancel()
+        try:
+            await bot_task
+        except asyncio.CancelledError:
+            pass
     stop_scheduler()
 
 
@@ -46,7 +54,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -74,11 +82,7 @@ def cache_info():
 
 @app.post("/users")
 def create_user_route(payload: CreateUserRequest, db: Session = Depends(get_db)):
-    return create_user(
-        db=db,
-        user_id=payload.user_id,
-        phone_number=payload.phone_number,
-    )
+    return create_user(db=db, user_id=payload.user_id)
 
 
 @app.get("/users/{user_id}")
@@ -87,18 +91,6 @@ def get_user_route(user_id: str, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
-
-
-@app.put("/users/{user_id}/phone")
-def update_user_phone_route(
-    user_id: str,
-    payload: UpdatePhoneRequest,
-    db: Session = Depends(get_db),
-):
-    try:
-        return update_user_phone(db, user_id, payload.phone_number)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
 
 
 @app.post("/users/{user_id}/watchlist")

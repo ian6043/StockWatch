@@ -1,14 +1,15 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from app.db_models import User, WatchlistItem, Rule
+from app.stock_service import get_stock_data
 
 
-def create_user(db: Session, user_id: str, phone_number: str | None = None) -> User:
+def create_user(db: Session, user_id: str) -> User:
     existing = db.scalar(select(User).where(User.user_id == user_id))
     if existing:
         return existing
 
-    user = User(user_id=user_id, phone_number=phone_number)
+    user = User(user_id=user_id)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -17,24 +18,6 @@ def create_user(db: Session, user_id: str, phone_number: str | None = None) -> U
 
 def get_user(db: Session, user_id: str) -> User | None:
     return db.scalar(select(User).where(User.user_id == user_id))
-
-
-def update_user_phone(db: Session, user_id: str, phone_number: str) -> User:
-    user = db.scalar(select(User).where(User.user_id == user_id))
-    if not user:
-        raise ValueError("User not found")
-
-    user.phone_number = phone_number
-    db.commit()
-    db.refresh(user)
-    return user
-
-
-def get_user_phone(db: Session, user_id: str) -> str | None:
-    user = db.scalar(select(User).where(User.user_id == user_id))
-    if not user:
-        raise ValueError("User not found")
-    return user.phone_number
 
 
 def add_stock_to_watchlist(db: Session, user_id: str, symbol: str) -> WatchlistItem:
@@ -52,6 +35,9 @@ def add_stock_to_watchlist(db: Session, user_id: str, symbol: str) -> WatchlistI
     )
     if existing:
         return existing
+
+    # Validate the symbol has retrievable price data before adding
+    get_stock_data(symbol)
 
     item = WatchlistItem(user_id=user.id, symbol=symbol)
     db.add(item)
@@ -178,8 +164,23 @@ def get_rule_by_id(db: Session, user_id: str, symbol: str, rule_id: int) -> Rule
 
 def delete_rule(db: Session, user_id: str, symbol: str, rule_id: int) -> bool:
     rule = get_rule_by_id(db, user_id, symbol, rule_id)
+    db.delete(rule)
+    db.commit()
+    return True
+
+
+def delete_rule_by_id(db: Session, user_id: str, rule_id: int) -> bool:
+    user = db.scalar(select(User).where(User.user_id == user_id))
+    if not user:
+        raise ValueError("User not found")
+
+    rule = db.scalar(
+        select(Rule)
+        .join(WatchlistItem, Rule.watchlist_item_id == WatchlistItem.id)
+        .where(Rule.id == rule_id, WatchlistItem.user_id == user.id)
+    )
     if not rule:
-        return False
+        raise ValueError(f"Rule #{rule_id} not found")
 
     db.delete(rule)
     db.commit()
