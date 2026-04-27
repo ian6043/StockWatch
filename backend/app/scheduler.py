@@ -25,10 +25,22 @@ def _candidate_slots_for_session(
     market_open_et: datetime, market_close_et: datetime
 ) -> list[datetime]:
     slots = []
-    current = market_open_et
-    while current < market_close_et:
+
+    # First check 5 minutes after open (9:35 for standard 9:30 sessions)
+    first = market_open_et + timedelta(minutes=5)
+    slots.append(first)
+
+    # Next :00 or :30 boundary after the first slot
+    if first.minute < 30:
+        current = first.replace(minute=30, second=0, microsecond=0)
+    else:
+        current = first.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+
+    # Every 30 minutes through market close + 30 min (captures the 4:30 slot)
+    while current <= market_close_et + timedelta(minutes=30):
         slots.append(current)
-        current += timedelta(hours=1)
+        current += timedelta(minutes=30)
+
     return slots
 
 
